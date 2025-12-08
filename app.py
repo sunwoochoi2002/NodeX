@@ -81,6 +81,52 @@ TRANSLATIONS = {
 }
 
 # ==========================================
+# 1.1 INITIAL DATA (For Seeding)
+# ==========================================
+INITIAL_EVENTS = [
+    {
+        "title_en": "Board Game Cafe Night",
+        "title_kr": "보드게임 카페 모임",
+        "date": "2024-05-20 19:00",
+        "location": "Whale Cafe, Hyoja",
+        "image": "https://images.unsplash.com/photo-1632501641765-e568d9088bed?auto=format&fit=crop&q=80&w=800",
+        "participants": 12
+    },
+    {
+        "title_en": "Pohang Hyoja Market Tour",
+        "title_kr": "포항 효자 시장 투어",
+        "date": "2024-05-22 11:00",
+        "location": "Hyoja Market Entrance",
+        "image": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80&w=800",
+        "participants": 8
+    },
+    {
+        "title_en": "Local Foodie Tour",
+        "title_kr": "맛집 투어",
+        "date": "2024-05-25 18:00",
+        "location": "Yeongildae Beach",
+        "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
+        "participants": 25
+    },
+    {
+        "title_en": "Yeongildae Beach Tour",
+        "title_kr": "영일대 해변 투어",
+        "date": "2024-05-26 14:00",
+        "location": "Space Walk",
+        "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800",
+        "participants": 30
+    },
+    {
+        "title_en": "Movie Night",
+        "title_kr": "영화 나들이",
+        "date": "2024-05-30 20:00",
+        "location": "CGV Pohang",
+        "image": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800",
+        "participants": 15
+    }
+]
+
+# ==========================================
 # 2. FIREBASE DATABASE (Real Persistence)
 # ==========================================
 import firebase_admin
@@ -142,6 +188,22 @@ class RealFirestore:
         if not self.db: return 0
         # Note: For large datasets, use aggregation queries. For now, this is fine.
         return len(list(self.db.collection("users").stream()))
+
+    def add_event(self, event_data):
+        if not self.db: return
+        self.db.collection("events").add(event_data)
+
+    def delete_event(self, event_id):
+        if not self.db: return
+        self.db.collection("events").document(event_id).delete()
+
+    def seed_events(self):
+        if not self.db: return
+        batch = self.db.batch()
+        for event in INITIAL_EVENTS:
+            doc_ref = self.db.collection("events").document()
+            batch.set(doc_ref, event)
+        batch.commit()
 
 # Fallback for when secrets are missing (to prevent crash)
 class MockCollection:
@@ -266,12 +328,16 @@ def render_navbar():
         
     with col2:
         # Navigation Links as buttons
-        c1, c2, c3, c4, c5 = st.columns(5)
-        if c1.button(get_text("nav_home"), key="nav_home_btn"): navigate_to("home")
-        if c2.button(get_text("nav_events"), key="nav_events_btn"): navigate_to("events")
-        if c3.button(get_text("nav_reviews"), key="nav_reviews_btn"): navigate_to("reviews")
-        if c4.button(get_text("nav_mypage"), key="nav_mypage_btn"): navigate_to("mypage")
-        if c5.button(get_text("nav_register"), key="nav_register_btn"): navigate_to("register")
+        cols = st.columns(6) if st.session_state.get('is_admin', False) else st.columns(5)
+        
+        if cols[0].button(get_text("nav_home"), key="nav_home_btn"): navigate_to("home")
+        if cols[1].button(get_text("nav_events"), key="nav_events_btn"): navigate_to("events")
+        if cols[2].button(get_text("nav_reviews"), key="nav_reviews_btn"): navigate_to("reviews")
+        if cols[3].button(get_text("nav_mypage"), key="nav_mypage_btn"): navigate_to("mypage")
+        if cols[4].button(get_text("nav_register"), key="nav_register_btn"): navigate_to("register")
+        
+        if st.session_state.get('is_admin', False):
+            if cols[5].button("⚙️ Admin", key="nav_admin_btn"): navigate_to("admin")
         
     with col3:
         # Language Toggle
@@ -393,11 +459,77 @@ def render_register():
             else:
                 st.error("Please fill in all required fields.")
 
+
+
+def render_admin():
+    st.header("⚙️ Admin Dashboard")
+    
+    st.subheader("1. Database Management")
+    if st.button("Initialize/Seed Event Data"):
+        st.session_state.db.seed_events()
+        st.success("Database seeded with initial events!")
+        time.sleep(1)
+        st.rerun()
+
+    st.divider()
+    
+    st.subheader("2. Add New Event")
+    with st.form("add_event_form"):
+        c1, c2 = st.columns(2)
+        title_en = c1.text_input("Title (English)")
+        title_kr = c2.text_input("Title (Korean)")
+        date = c1.text_input("Date (e.g., 2024-05-20 19:00)")
+        location = c2.text_input("Location")
+        image = st.text_input("Image URL (Unsplash etc.)")
+        participants = st.number_input("Current Participants", value=0)
+        
+        if st.form_submit_button("Add Event"):
+            new_event = {
+                "title_en": title_en, "title_kr": title_kr,
+                "date": date, "location": location,
+                "image": image, "participants": participants
+            }
+            st.session_state.db.add_event(new_event)
+            st.success("Event added!")
+            time.sleep(1)
+            st.rerun()
+            
+    st.divider()
+    
+    st.subheader("3. Manage Events")
+    events = st.session_state.db.collection("events").stream()
+    for event in events:
+        e_data = event.to_dict()
+        with st.expander(f"{e_data.get('title_en', 'Untitled')} ({e_data.get('date')})"):
+            st.write(e_data)
+            if st.button("Delete Event", key=f"del_{event.id}"):
+                st.session_state.db.delete_event(event.id)
+                st.error("Event deleted.")
+                time.sleep(1)
+                st.rerun()
+
 # ==========================================
 # 5. MAIN APP EXECUTION
 # ==========================================
 
 def main():
+    # Admin Login Sidebar
+    with st.sidebar:
+        st.header("Admin Access")
+        if not st.session_state.get('is_admin', False):
+            pwd = st.text_input("Password", type="password")
+            # Simple password check (In production, use st.secrets['admin_password'])
+            if pwd == "1234": 
+                st.session_state.is_admin = True
+                st.success("Logged in!")
+                st.rerun()
+        else:
+            st.success("Admin Mode Active")
+            if st.button("Logout"):
+                st.session_state.is_admin = False
+                navigate_to("home")
+                st.rerun()
+
     # Visitor Tracking Logic
     if 'has_visited' not in st.session_state:
         st.session_state.db.log_visit()
@@ -418,6 +550,12 @@ def main():
         render_mypage()
     elif st.session_state.page == 'register':
         render_register()
+    elif st.session_state.page == 'admin':
+        if st.session_state.get('is_admin', False):
+            render_admin()
+        else:
+            st.error("Access Denied")
+            navigate_to("home")
         
     # Footer
     st.markdown("---")
