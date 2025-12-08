@@ -157,6 +157,35 @@ class RealFirestore:
             return self.db.collection(name)
         return MockCollection([]) # Fallback if DB not connected
 
+    def _to_dict(self, doc):
+        """Helper to convert Firestore DocumentSnapshot to dict safely."""
+        if hasattr(doc, 'to_dict'):
+            data = doc.to_dict()
+            data['id'] = doc.id  # Include the document ID
+            return data
+        return doc # Already a dict (Mock case)
+
+    def get_events(self, limit=None):
+        """Fetches events as a list of dictionaries."""
+        if not self.db: return []
+        
+        # Fetch stream
+        docs = self.db.collection("events").stream()
+        
+        # Convert to list of dicts
+        events = [self._to_dict(doc) for doc in docs]
+        
+        # Apply limit if requested
+        if limit:
+            return events[:limit]
+        return events
+
+    def get_reviews(self):
+        """Fetches reviews as a list of dictionaries."""
+        if not self.db: return []
+        docs = self.db.collection("reviews").stream()
+        return [self._to_dict(doc) for doc in docs]
+
     def log_visit(self):
         if not self.db: return
         
@@ -374,9 +403,8 @@ def render_home():
         st.metric(label=get_text("stats_users"), value=st.session_state.db.get_user_count(), delta="New")
 
 def render_events(limit=None):
-    events = st.session_state.db.collection("events").stream()
-    if limit:
-        events = events[:limit]
+    # Use the robust data access method
+    events = st.session_state.db.get_events(limit=limit)
         
     # Grid Layout for Events
     cols = st.columns(3)
@@ -384,15 +412,16 @@ def render_events(limit=None):
     for idx, event in enumerate(events):
         with cols[idx % 3]:
             # Determine title based on language
-            title = event['title_en'] if st.session_state.lang == 'en' else event['title_kr']
+            title = event.get('title_en', 'Untitled') if st.session_state.lang == 'en' else event.get('title_kr', '제목 없음')
             
             # Card UI
-            st.image(event['image'], use_container_width=True)
+            st.image(event.get('image', 'https://via.placeholder.com/300'), use_container_width=True)
             st.markdown(f"### {title}")
-            st.caption(f"📅 {event['date']} | 📍 {event['location']}")
-            st.markdown(f"**{event['participants']}** {get_text('participants')}")
+            st.caption(f"📅 {event.get('date', 'TBD')} | 📍 {event.get('location', 'TBD')}")
+            st.markdown(f"**{event.get('participants', 0)}** {get_text('participants')}")
             
-            if st.button(get_text("event_join"), key=f"join_{event['id']}"):
+            # Use event['id'] which is ensured by _to_dict
+            if st.button(get_text("event_join"), key=f"join_{event.get('id', idx)}"):
                 st.success(get_text("event_joined"))
                 # In a real app, update DB here
             
@@ -411,17 +440,17 @@ def render_reviews():
                 st.success("Review submitted successfully!")
 
     # Display Reviews
-    reviews = st.session_state.db.collection("reviews").stream()
+    reviews = st.session_state.db.get_reviews()
     
     # Masonry-like grid
     cols = st.columns(3)
     for idx, review in enumerate(reviews):
         with cols[idx % 3]:
             with st.container(border=True):
-                st.image(review['image'], use_container_width=True)
-                st.markdown(f"**{review['user']}**")
-                st.markdown("⭐" * review['rating'])
-                st.write(f"\"{review['comment']}\"")
+                st.image(review.get('image', 'https://via.placeholder.com/150'), use_container_width=True)
+                st.markdown(f"**{review.get('user', 'Anonymous')}**")
+                st.markdown("⭐" * review.get('rating', 5))
+                st.write(f"\"{review.get('comment', '')}\"")
 
 def render_mypage():
     st.header(get_text("mypage_header"))
@@ -497,13 +526,12 @@ def render_admin():
     st.divider()
     
     st.subheader("3. Manage Events")
-    events = st.session_state.db.collection("events").stream()
-    for event in events:
-        e_data = event.to_dict()
-        with st.expander(f"{e_data.get('title_en', 'Untitled')} ({e_data.get('date')})"):
+    events = st.session_state.db.get_events()
+    for e_data in events:
+        with st.expander(f"{e_data.get('title_en', 'Untitled')} ({e_data.get('date', 'No Date')})"):
             st.write(e_data)
-            if st.button("Delete Event", key=f"del_{event.id}"):
-                st.session_state.db.delete_event(event.id)
+            if st.button("Delete Event", key=f"del_{e_data.get('id')}"):
+                st.session_state.db.delete_event(e_data.get('id'))
                 st.error("Event deleted.")
                 time.sleep(1)
                 st.rerun()
