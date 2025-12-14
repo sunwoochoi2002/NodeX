@@ -114,10 +114,12 @@ INITIAL_EVENTS = [
     {
         "title_en": "Board Game Cafe Night",
         "title_kr": "보드게임 카페 모임",
-        "date": "2024-05-20 19:00",
+        "date": "2025-01-15 19:00",
         "location": "Whale Cafe, Hyoja",
         "image": "https://images.unsplash.com/photo-1632501641765-e568d9088bed?auto=format&fit=crop&q=80&w=800",
-        "participants": 12,
+        "current_participants": 3,
+        "max_participants": 12,
+        "participant_names": [],
         "duration_hours": 4,
         "schedule": [
             {"time": "19:00", "activity_en": "Meetup & Introduction", "activity_kr": "만남 및 소개"},
@@ -131,10 +133,12 @@ INITIAL_EVENTS = [
     {
         "title_en": "Pohang Hyoja Market Tour",
         "title_kr": "포항 효자 시장 투어",
-        "date": "2024-05-22 11:00",
+        "date": "2025-01-18 11:00",
         "location": "Hyoja Market Entrance",
         "image": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80&w=800",
-        "participants": 8,
+        "current_participants": 2,
+        "max_participants": 8,
+        "participant_names": [],
         "duration_hours": 3,
         "schedule": [
             {"time": "11:00", "activity_en": "Meet at market entrance", "activity_kr": "시장 입구 집합"},
@@ -147,10 +151,12 @@ INITIAL_EVENTS = [
     {
         "title_en": "Local Foodie Tour",
         "title_kr": "맛집 투어",
-        "date": "2024-05-25 18:00",
+        "date": "2025-01-25 18:00",
         "location": "Yeongildae Beach",
         "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
-        "participants": 25,
+        "current_participants": 5,
+        "max_participants": 20,
+        "participant_names": [],
         "duration_hours": 5,
         "schedule": [
             {"time": "18:00", "activity_en": "Gather at meeting point", "activity_kr": "집합 장소 모임"},
@@ -164,10 +170,12 @@ INITIAL_EVENTS = [
     {
         "title_en": "Yeongildae Beach Tour",
         "title_kr": "영일대 해변 투어",
-        "date": "2024-05-26 14:00",
+        "date": "2025-02-01 14:00",
         "location": "Space Walk",
         "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800",
-        "participants": 30,
+        "current_participants": 8,
+        "max_participants": 25,
+        "participant_names": [],
         "duration_hours": 6,
         "schedule": [
             {"time": "14:00", "activity_en": "Meet at Space Walk", "activity_kr": "스페이스워크 집합"},
@@ -182,10 +190,12 @@ INITIAL_EVENTS = [
     {
         "title_en": "Movie Night",
         "title_kr": "영화 나들이",
-        "date": "2024-05-30 20:00",
+        "date": "2025-02-08 20:00",
         "location": "CGV Pohang",
         "image": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800",
-        "participants": 15,
+        "current_participants": 4,
+        "max_participants": 15,
+        "participant_names": [],
         "duration_hours": 4,
         "schedule": [
             {"time": "20:00", "activity_en": "Meet at CGV lobby", "activity_kr": "CGV 로비 집합"},
@@ -327,10 +337,11 @@ class RealFirestore:
             return self._to_dict(user)
         return None
 
-    def join_event(self, user_id, event_id, event_title):
-        """Add an event to a user's joined_events list and increment event participants."""
+    def join_event(self, user_id, event_id, event_title, user_name):
+        """Add an event to a user's joined_events list and update event participants."""
         if not self.db: return False
         
+        # Get user document
         user_ref = self.db.collection("users").document(user_id)
         user_doc = user_ref.get()
         
@@ -344,6 +355,21 @@ class RealFirestore:
         if any(e.get("event_id") == event_id for e in joined_events):
             return "already_joined"
         
+        # Get event document to check capacity
+        event_ref = self.db.collection("events").document(event_id)
+        event_doc = event_ref.get()
+        
+        if not event_doc.exists:
+            return False
+        
+        event_data = event_doc.to_dict()
+        current = event_data.get("current_participants", event_data.get("participants", 0))
+        max_p = event_data.get("max_participants", 20)
+        
+        # Check if event is full
+        if current >= max_p:
+            return "event_full"
+        
         # Add event to user's joined_events
         joined_events.append({
             "event_id": event_id,
@@ -352,9 +378,14 @@ class RealFirestore:
         })
         user_ref.update({"joined_events": joined_events})
         
-        # Increment event participants count
-        event_ref = self.db.collection("events").document(event_id)
-        event_ref.update({"participants": Increment(1)})
+        # Update event: increment current_participants and add user name to participant_names
+        participant_names = event_data.get("participant_names", [])
+        participant_names.append(user_name)
+        
+        event_ref.update({
+            "current_participants": Increment(1),
+            "participant_names": participant_names
+        })
         
         return True
 
@@ -567,10 +598,18 @@ def render_events(limit=None):
             event_id = event.get('id', str(idx))
             
             # Card UI
-            st.image(event.get('image', 'https://via.placeholder.com/300'), use_container_width=True)
+            image_url = event.get('image') or 'https://via.placeholder.com/300x200?text=No+Image'
+            try:
+                st.image(image_url, use_container_width=True)
+            except Exception:
+                st.image('https://via.placeholder.com/300x200?text=No+Image', use_container_width=True)
             st.markdown(f"### {title}")
             st.caption(f"📅 {event.get('date', 'TBD')} | 📍 {event.get('location', 'TBD')}")
-            st.markdown(f"**{event.get('participants', 0)}** {get_text('participants')}")
+            
+            # Participants count: current/max format
+            current = event.get('current_participants', event.get('participants', 0))
+            max_p = event.get('max_participants', 20)
+            st.markdown(f"👥 **{current}/{max_p}** {get_text('participants')}")
             
             # Duration and Cost
             duration = event.get('duration_hours', 3)
@@ -588,32 +627,44 @@ def render_events(limit=None):
             
             # Join Button with Name Verification
             with st.expander(f"🎫 {get_text('event_join')}"):
-                join_name = st.text_input(
-                    get_text("event_enter_name"), 
-                    key=f"join_name_{event_id}"
-                )
-                if st.button(get_text("event_join"), key=f"join_btn_{event_id}"):
-                    if join_name:
-                        # Check if user is registered
-                        user = st.session_state.db.get_user_by_name(join_name)
-                        if user:
-                            # Try to join the event
-                            result = st.session_state.db.join_event(user['id'], event_id, title)
-                            if result == "already_joined":
-                                st.warning(get_text("event_already_joined"))
-                            elif result:
-                                st.success(get_text("event_join_success"))
-                                time.sleep(1)
-                                st.rerun()
+                # Check if event is full
+                if current >= max_p:
+                    st.warning("🚫 This event is full!")
+                else:
+                    join_name = st.text_input(
+                        get_text("event_enter_name"), 
+                        key=f"join_name_{event_id}"
+                    )
+                    
+                    col_join, col_register = st.columns(2)
+                    
+                    with col_join:
+                        if st.button(get_text("event_join"), key=f"join_btn_{event_id}", use_container_width=True):
+                            if join_name:
+                                # Check if user is registered
+                                user = st.session_state.db.get_user_by_name(join_name)
+                                if user:
+                                    # Try to join the event
+                                    result = st.session_state.db.join_event(user['id'], event_id, title, join_name)
+                                    if result == "already_joined":
+                                        st.warning(get_text("event_already_joined"))
+                                    elif result == "event_full":
+                                        st.error("This event is full!")
+                                    elif result:
+                                        st.success(get_text("event_join_success"))
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to join event.")
+                                else:
+                                    st.error(get_text("event_not_registered"))
                             else:
-                                st.error("Failed to join event.")
-                        else:
-                            st.error(get_text("event_not_registered"))
-                            if st.button("Register Now", key=f"go_register_{event_id}"):
-                                navigate_to("register")
-                                st.rerun()
-                    else:
-                        st.warning(get_text("event_enter_name"))
+                                st.warning(get_text("event_enter_name"))
+                    
+                    with col_register:
+                        if st.button("Register Now", key=f"go_register_{event_id}", use_container_width=True):
+                            navigate_to("register")
+                            st.rerun()
             
             st.markdown("---")
 
@@ -753,8 +804,10 @@ def render_admin():
         image = st.text_input("Image URL (Unsplash etc.)")
         
         c3, c4 = st.columns(2)
-        participants = c3.number_input("Current Participants", value=0)
-        duration_hours = c4.number_input("Duration (hours)", min_value=1, max_value=12, value=4)
+        current_participants = c3.number_input("Current Participants", value=0)
+        max_participants = c4.number_input("Max Participants", min_value=1, value=20)
+        
+        duration_hours = st.number_input("Duration (hours)", min_value=1, max_value=12, value=4)
         
         st.markdown("**Schedule (JSON format)**")
         st.caption('Example: [{"time": "19:00", "activity_en": "Meetup", "activity_kr": "만남"}]')
@@ -770,7 +823,10 @@ def render_admin():
             new_event = {
                 "title_en": title_en, "title_kr": title_kr,
                 "date": date, "location": location,
-                "image": image, "participants": participants,
+                "image": image, 
+                "current_participants": current_participants,
+                "max_participants": max_participants,
+                "participant_names": [],
                 "duration_hours": duration_hours,
                 "schedule": schedule
             }
