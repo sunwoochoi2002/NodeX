@@ -17,7 +17,7 @@ ACCENT_COLOR = "#F0F2F6"
 TRANSLATIONS = {
     "en": {
         "nav_home": "Home",
-        "nav_events": "Events",
+        "nav_events": "All Events",
         "nav_reviews": "Reviews",
         "nav_mypage": "My Page",
         "hero_title": "NodeX",
@@ -62,7 +62,7 @@ TRANSLATIONS = {
     },
     "kr": {
         "nav_home": "홈",
-        "nav_events": "이벤트",
+        "nav_events": "전체 이벤트",
         "nav_reviews": "후기",
         "nav_mypage": "마이페이지",
         "hero_title": "NodeX",
@@ -616,7 +616,16 @@ def render_events(limit=None):
     # Filter events: only show events where is_upcoming is True
     events = [event for event in all_events if event.get('is_upcoming', False) == True]
     
-    # Apply limit after filtering
+    # Sort events by date (closest first)
+    def parse_date(event):
+        try:
+            return datetime.strptime(event.get('date', '2099-12-31 23:59'), "%Y-%m-%d %H:%M")
+        except (ValueError, TypeError):
+            return datetime.max
+    
+    events = sorted(events, key=parse_date)
+    
+    # Apply limit after filtering and sorting
     if limit:
         events = events[:limit]
     
