@@ -272,6 +272,21 @@ class RealFirestore:
         docs = self.db.collection("reviews").stream()
         return [self._to_dict(doc) for doc in docs]
 
+    def add_review(self, review_data):
+        """Add a new review to the database."""
+        if not self.db: return None
+        review_data['created_at'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        doc_ref = self.db.collection("reviews").add(review_data)
+        return doc_ref
+
+    def get_past_events(self):
+        """Fetches past events (is_upcoming=False) as a list of dictionaries."""
+        if not self.db: return []
+        all_events = self.db.collection("events").stream()
+        events = [self._to_dict(doc) for doc in all_events]
+        # Filter for past events only
+        return [e for e in events if e.get('is_upcoming', True) == False]
+
     def log_visit(self):
         if not self.db: return
         
@@ -723,27 +738,88 @@ def render_events(limit=None):
 def render_reviews():
     st.header(get_text("review_header"))
     
+    # Get past events for selection
+    past_events = st.session_state.db.get_past_events()
+    
     # Review Form
-    with st.expander(get_text("review_placeholder")):
-        with st.form("review_form"):
-            st.text_area("Comment", placeholder=get_text("review_placeholder"))
-            st.slider("Rating", 1, 5, 5)
-            st.file_uploader("Photo")
-            if st.form_submit_button(get_text("review_submit")):
-                st.success("Review submitted successfully!")
+    with st.expander(f"✍️ {get_text('review_placeholder')}", expanded=False):
+        if not past_events:
+            st.info("No past events available for review yet. Reviews can only be written for completed events.")
+        else:
+            with st.form("review_form"):
+                # Event selection
+                event_options = {
+                    e.get('id'): f"{e.get('title_en', 'Untitled')} ({e.get('date', 'N/A')})" 
+                    if st.session_state.lang == 'en' 
+                    else f"{e.get('title_kr', '제목 없음')} ({e.get('date', 'N/A')})"
+                    for e in past_events
+                }
+                
+                selected_event_id = st.selectbox(
+                    "Select Event" if st.session_state.lang == 'en' else "이벤트 선택",
+                    options=list(event_options.keys()),
+                    format_func=lambda x: event_options.get(x, "Unknown")
+                )
+                
+                # Author name
+                author_name = st.text_input(
+                    "Your Name" if st.session_state.lang == 'en' else "작성자 이름"
+                )
+                
+                # Rating
+                rating = st.slider(
+                    "Rating" if st.session_state.lang == 'en' else "별점", 
+                    1, 5, 5
+                )
+                
+                # Comment
+                comment = st.text_area(
+                    "Your Review" if st.session_state.lang == 'en' else "리뷰 내용",
+                    placeholder=get_text("review_placeholder")
+                )
+                
+                if st.form_submit_button(get_text("review_submit")):
+                    if author_name and comment:
+                        # Get event title for display
+                        event_title = event_options.get(selected_event_id, "Unknown Event")
+                        
+                        review_data = {
+                            "event_id": selected_event_id,
+                            "event_title": event_title,
+                            "user": author_name,
+                            "rating": rating,
+                            "comment": comment
+                        }
+                        st.session_state.db.add_review(review_data)
+                        st.success("Review submitted successfully!" if st.session_state.lang == 'en' else "리뷰가 등록되었습니다!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.warning("Please fill in your name and review." if st.session_state.lang == 'en' else "이름과 리뷰 내용을 입력해주세요.")
 
     # Display Reviews
+    st.markdown("---")
     reviews = st.session_state.db.get_reviews()
     
-    # Masonry-like grid
+    if not reviews:
+        st.info("No reviews yet. Be the first to write one!" if st.session_state.lang == 'en' else "아직 리뷰가 없습니다. 첫 리뷰를 작성해보세요!")
+        return
+    
+    # Grid layout for reviews
     cols = st.columns(3)
     for idx, review in enumerate(reviews):
         with cols[idx % 3]:
             with st.container(border=True):
-                st.image(review.get('image', 'https://via.placeholder.com/150'), use_container_width=True)
+                # Event title
+                st.caption(f"📅 {review.get('event_title', 'Unknown Event')}")
+                # Author
                 st.markdown(f"**{review.get('user', 'Anonymous')}**")
+                # Rating
                 st.markdown("⭐" * review.get('rating', 5))
+                # Comment
                 st.write(f"\"{review.get('comment', '')}\"")
+                # Date
+                st.caption(f"🕐 {review.get('created_at', 'N/A')}")
 
 def render_mypage():
     st.header(get_text("mypage_header"))
