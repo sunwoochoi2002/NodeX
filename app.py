@@ -114,7 +114,7 @@ INITIAL_EVENTS = [
     {
         "title_en": "Board Game Cafe Night",
         "title_kr": "보드게임 카페 모임",
-        "date": "2025-12-20 19:00",
+        "date": "2026-01-15 19:00",
         "location": "Whale Cafe, Hyoja",
         "image": "https://images.unsplash.com/photo-1632501641765-e568d9088bed?auto=format&fit=crop&q=80&w=800",
         "current_participants": 3,
@@ -134,7 +134,7 @@ INITIAL_EVENTS = [
     {
         "title_en": "Pohang Hyoja Market Tour",
         "title_kr": "포항 효자 시장 투어",
-        "date": "2025-12-28 11:00",
+        "date": "2026-01-22 11:00",
         "location": "Hyoja Market Entrance",
         "image": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80&w=800",
         "current_participants": 2,
