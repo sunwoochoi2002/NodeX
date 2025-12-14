@@ -848,18 +848,20 @@ def render_mypage():
     if 'mypage_user_id' not in st.session_state:
         st.session_state.mypage_user_id = None
     
-    # Login form to find user
-    with st.container(border=True):
-        st.markdown(f"**{get_text('mypage_login_prompt')}**")
-        lookup_name = st.text_input("Name", key="mypage_lookup_name", label_visibility="collapsed")
-        if st.button(get_text("mypage_view"), key="mypage_lookup_btn"):
-            if lookup_name:
-                user = st.session_state.db.get_user_by_name(lookup_name)
-                if user:
-                    st.session_state.mypage_user_id = user.get('id')
-                    st.rerun()
-                else:
-                    st.error(get_text("event_not_registered"))
+    # Show login form ONLY if not logged in
+    if not st.session_state.mypage_user_id:
+        with st.container(border=True):
+            st.markdown(f"**{get_text('mypage_login_prompt')}**")
+            lookup_name = st.text_input("Name", key="mypage_lookup_name", label_visibility="collapsed")
+            if st.button(get_text("mypage_view"), key="mypage_lookup_btn"):
+                if lookup_name:
+                    user = st.session_state.db.get_user_by_name(lookup_name)
+                    if user:
+                        st.session_state.mypage_user_id = user.get('id')
+                        st.rerun()
+                    else:
+                        st.error(get_text("event_not_registered"))
+        return  # Exit early if not logged in
     
     # Display user profile if logged in - ALWAYS fetch fresh data from DB
     if st.session_state.mypage_user_id:
@@ -879,34 +881,36 @@ def render_mypage():
             profile_image = user.get('profile_image')
             if profile_image:
                 # Display uploaded image (base64 encoded)
-                st.image(profile_image, width=150)
+                st.image(profile_image, width=120)
             else:
                 # Generate avatar based on user name (default)
                 avatar_seed = user.get('name', 'User').replace(' ', '')
-                st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={avatar_seed}", width=150)
-            
-            # Profile image upload
-            uploaded_file = st.file_uploader(
-                "📷 Upload Photo" if st.session_state.lang == 'en' else "📷 사진 업로드",
-                type=['jpg', 'jpeg', 'png'],
-                key="profile_upload"
-            )
-            if uploaded_file is not None:
-                # Convert to base64
-                bytes_data = uploaded_file.getvalue()
-                base64_image = f"data:image/{uploaded_file.type.split('/')[-1]};base64,{base64.b64encode(bytes_data).decode()}"
-                
-                # Save to database
-                st.session_state.db.update_user(user.get('id'), {"profile_image": base64_image})
-                st.success("Profile photo updated!" if st.session_state.lang == 'en' else "프로필 사진이 업데이트되었습니다!")
-                time.sleep(1)
-                st.rerun()
+                st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={avatar_seed}", width=120)
         
         with col2:
             st.subheader(user.get('name', 'Unknown'))
             st.write(f"**Student ID:** {user.get('id', 'N/A')}")
             st.write(f"**Email:** {user.get('email', 'N/A')}")
             st.write(f"**Registered:** {user.get('created_at', 'N/A')}")
+            
+            # Profile image upload in small expander
+            with st.expander("📷 Change Profile Photo" if st.session_state.lang == 'en' else "📷 프로필 사진 변경"):
+                uploaded_file = st.file_uploader(
+                    "Choose image" if st.session_state.lang == 'en' else "이미지 선택",
+                    type=['jpg', 'jpeg', 'png'],
+                    key="profile_upload",
+                    label_visibility="collapsed"
+                )
+                if uploaded_file is not None:
+                    # Convert to base64
+                    bytes_data = uploaded_file.getvalue()
+                    base64_image = f"data:image/{uploaded_file.type.split('/')[-1]};base64,{base64.b64encode(bytes_data).decode()}"
+                    
+                    # Save to database
+                    st.session_state.db.update_user(user.get('id'), {"profile_image": base64_image})
+                    st.success("✅ Photo updated!" if st.session_state.lang == 'en' else "✅ 사진이 업데이트되었습니다!")
+                    time.sleep(1)
+                    st.rerun()
         
         st.markdown("---")
         
