@@ -333,6 +333,13 @@ class RealFirestore:
 
     def seed_events(self):
         if not self.db: return
+        
+        # First, delete ALL existing events to prevent duplicates
+        existing_events = self.db.collection("events").stream()
+        for doc in existing_events:
+            doc.reference.delete()
+        
+        # Then add fresh events
         batch = self.db.batch()
         for event in INITIAL_EVENTS:
             doc_ref = self.db.collection("events").document()
