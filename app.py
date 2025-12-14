@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 import random
+import json
 from datetime import datetime
 
 # ==========================================
@@ -45,6 +46,19 @@ TRANSLATIONS = {
         "reg_success": "Registration Successful! Welcome, ",
         "stats_visitors": "Today's Visitors",
         "stats_users": "Total Members",
+        "event_details": "View Details",
+        "event_schedule": "Schedule",
+        "event_cost": "Participation Fee",
+        "event_duration": "Duration",
+        "event_hours": "hours",
+        "event_enter_name": "Enter your registered name",
+        "event_not_registered": "You are not registered. Please register first!",
+        "event_already_joined": "You have already joined this event!",
+        "event_join_success": "Successfully joined the event!",
+        "mypage_joined_events": "My Joined Events",
+        "mypage_no_events": "You haven't joined any events yet.",
+        "mypage_login_prompt": "Enter your name to view your profile",
+        "mypage_view": "View Profile",
     },
     "kr": {
         "nav_home": "홈",
@@ -77,6 +91,19 @@ TRANSLATIONS = {
         "reg_success": "가입 완료! 환영합니다, ",
         "stats_visitors": "오늘 방문자 수",
         "stats_users": "총 가입 멤버",
+        "event_details": "상세 보기",
+        "event_schedule": "일정",
+        "event_cost": "참가비",
+        "event_duration": "소요 시간",
+        "event_hours": "시간",
+        "event_enter_name": "등록된 이름을 입력하세요",
+        "event_not_registered": "등록되지 않은 사용자입니다. 먼저 회원가입을 해주세요!",
+        "event_already_joined": "이미 참여한 이벤트입니다!",
+        "event_join_success": "이벤트 참여가 완료되었습니다!",
+        "mypage_joined_events": "참여한 이벤트",
+        "mypage_no_events": "아직 참여한 이벤트가 없습니다.",
+        "mypage_login_prompt": "프로필을 보려면 이름을 입력하세요",
+        "mypage_view": "프로필 보기",
     }
 }
 
@@ -90,7 +117,16 @@ INITIAL_EVENTS = [
         "date": "2024-05-20 19:00",
         "location": "Whale Cafe, Hyoja",
         "image": "https://images.unsplash.com/photo-1632501641765-e568d9088bed?auto=format&fit=crop&q=80&w=800",
-        "participants": 12
+        "participants": 12,
+        "duration_hours": 4,
+        "schedule": [
+            {"time": "19:00", "activity_en": "Meetup & Introduction", "activity_kr": "만남 및 소개"},
+            {"time": "19:30", "activity_en": "Light snacks & drinks", "activity_kr": "간식 및 음료"},
+            {"time": "20:00", "activity_en": "Board game session 1", "activity_kr": "보드게임 세션 1"},
+            {"time": "21:00", "activity_en": "Break & Photo time", "activity_kr": "휴식 및 사진 시간"},
+            {"time": "21:30", "activity_en": "Board game session 2", "activity_kr": "보드게임 세션 2"},
+            {"time": "22:30", "activity_en": "Wrap-up & Farewell", "activity_kr": "마무리 및 작별"}
+        ]
     },
     {
         "title_en": "Pohang Hyoja Market Tour",
@@ -98,7 +134,15 @@ INITIAL_EVENTS = [
         "date": "2024-05-22 11:00",
         "location": "Hyoja Market Entrance",
         "image": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80&w=800",
-        "participants": 8
+        "participants": 8,
+        "duration_hours": 3,
+        "schedule": [
+            {"time": "11:00", "activity_en": "Meet at market entrance", "activity_kr": "시장 입구 집합"},
+            {"time": "11:15", "activity_en": "Traditional market exploration", "activity_kr": "전통시장 탐방"},
+            {"time": "12:00", "activity_en": "Local street food tasting", "activity_kr": "현지 길거리 음식 맛보기"},
+            {"time": "13:00", "activity_en": "Free shopping time", "activity_kr": "자유 쇼핑 시간"},
+            {"time": "13:45", "activity_en": "Group photo & Wrap-up", "activity_kr": "단체 사진 및 마무리"}
+        ]
     },
     {
         "title_en": "Local Foodie Tour",
@@ -106,7 +150,16 @@ INITIAL_EVENTS = [
         "date": "2024-05-25 18:00",
         "location": "Yeongildae Beach",
         "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
-        "participants": 25
+        "participants": 25,
+        "duration_hours": 5,
+        "schedule": [
+            {"time": "18:00", "activity_en": "Gather at meeting point", "activity_kr": "집합 장소 모임"},
+            {"time": "18:30", "activity_en": "Restaurant 1: Fresh seafood", "activity_kr": "맛집 1: 신선한 해산물"},
+            {"time": "19:30", "activity_en": "Walk along the beach", "activity_kr": "해변 산책"},
+            {"time": "20:00", "activity_en": "Restaurant 2: Korean BBQ", "activity_kr": "맛집 2: 한국식 바베큐"},
+            {"time": "21:30", "activity_en": "Dessert cafe visit", "activity_kr": "디저트 카페 방문"},
+            {"time": "22:30", "activity_en": "Night view & Farewell", "activity_kr": "야경 감상 및 작별"}
+        ]
     },
     {
         "title_en": "Yeongildae Beach Tour",
@@ -114,7 +167,17 @@ INITIAL_EVENTS = [
         "date": "2024-05-26 14:00",
         "location": "Space Walk",
         "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800",
-        "participants": 30
+        "participants": 30,
+        "duration_hours": 6,
+        "schedule": [
+            {"time": "14:00", "activity_en": "Meet at Space Walk", "activity_kr": "스페이스워크 집합"},
+            {"time": "14:30", "activity_en": "Space Walk photo time", "activity_kr": "스페이스워크 사진 시간"},
+            {"time": "15:30", "activity_en": "Beach activities & games", "activity_kr": "해변 활동 및 게임"},
+            {"time": "17:00", "activity_en": "Free time & swimming", "activity_kr": "자유시간 및 수영"},
+            {"time": "18:30", "activity_en": "Sunset watching", "activity_kr": "일몰 감상"},
+            {"time": "19:30", "activity_en": "Beach BBQ dinner", "activity_kr": "해변 바베큐 저녁"},
+            {"time": "20:30", "activity_en": "Wrap-up & Farewell", "activity_kr": "마무리 및 작별"}
+        ]
     },
     {
         "title_en": "Movie Night",
@@ -122,7 +185,15 @@ INITIAL_EVENTS = [
         "date": "2024-05-30 20:00",
         "location": "CGV Pohang",
         "image": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800",
-        "participants": 15
+        "participants": 15,
+        "duration_hours": 4,
+        "schedule": [
+            {"time": "20:00", "activity_en": "Meet at CGV lobby", "activity_kr": "CGV 로비 집합"},
+            {"time": "20:15", "activity_en": "Get popcorn & snacks", "activity_kr": "팝콘 및 간식 구매"},
+            {"time": "20:30", "activity_en": "Movie screening", "activity_kr": "영화 상영"},
+            {"time": "22:30", "activity_en": "Movie discussion at cafe", "activity_kr": "카페에서 영화 토론"},
+            {"time": "23:30", "activity_en": "Farewell", "activity_kr": "작별"}
+        ]
     }
 ]
 
@@ -209,14 +280,28 @@ class RealFirestore:
         return 0
 
     def register_user(self, user_data):
+        """Registers a user and stamps the registration date for daily stats."""
         if not self.db: return
+        
+        # Ensure we don't mutate the original input
+        user_record = dict(user_data)
+        user_record.setdefault("created_at", datetime.now().strftime("%Y-%m-%d"))
+        
         # Use student ID as the document ID to prevent duplicates
-        self.db.collection("users").document(user_data["id"]).set(user_data)
+        self.db.collection("users").document(user_record["id"]).set(user_record)
 
     def get_user_count(self):
         if not self.db: return 0
         # Note: For large datasets, use aggregation queries. For now, this is fine.
         return len(list(self.db.collection("users").stream()))
+
+    def get_today_user_registrations(self):
+        """Counts how many users registered today."""
+        if not self.db: return 0
+        
+        today = datetime.now().strftime("%Y-%m-%d")
+        users = self.db.collection("users").stream()
+        return sum(1 for user in users if self._to_dict(user).get("created_at") == today)
 
     def add_event(self, event_data):
         if not self.db: return
@@ -233,6 +318,63 @@ class RealFirestore:
             doc_ref = self.db.collection("events").document()
             batch.set(doc_ref, event)
         batch.commit()
+
+    def get_user_by_name(self, name):
+        """Find a user by their name. Returns user dict or None."""
+        if not self.db: return None
+        users = self.db.collection("users").where("name", "==", name).stream()
+        for user in users:
+            return self._to_dict(user)
+        return None
+
+    def join_event(self, user_id, event_id, event_title):
+        """Add an event to a user's joined_events list and increment event participants."""
+        if not self.db: return False
+        
+        user_ref = self.db.collection("users").document(user_id)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return False
+        
+        user_data = user_doc.to_dict()
+        joined_events = user_data.get("joined_events", [])
+        
+        # Check if already joined
+        if any(e.get("event_id") == event_id for e in joined_events):
+            return "already_joined"
+        
+        # Add event to user's joined_events
+        joined_events.append({
+            "event_id": event_id,
+            "event_title": event_title,
+            "joined_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+        })
+        user_ref.update({"joined_events": joined_events})
+        
+        # Increment event participants count
+        event_ref = self.db.collection("events").document(event_id)
+        event_ref.update({"participants": Increment(1)})
+        
+        return True
+
+    def get_user_events(self, user_id):
+        """Get list of events a user has joined."""
+        if not self.db: return []
+        
+        user_doc = self.db.collection("users").document(user_id).get()
+        if user_doc.exists:
+            return user_doc.to_dict().get("joined_events", [])
+        return []
+
+    def get_event_by_id(self, event_id):
+        """Get a single event by its ID."""
+        if not self.db: return None
+        
+        doc = self.db.collection("events").document(event_id).get()
+        if doc.exists:
+            return self._to_dict(doc)
+        return None
 
 # Fallback for when secrets are missing (to prevent crash)
 class MockCollection:
@@ -385,7 +527,7 @@ def render_home():
     c1, c2, c3 = st.columns([1,1,1])
     with c2:
         if st.button(get_text("hero_cta"), use_container_width=True):
-            navigate_to("events")
+            navigate_to("register")
 
     st.markdown("---")
     
@@ -397,10 +539,19 @@ def render_home():
     st.markdown("---")
     st.markdown(f"### 📊 NodeX Dashboard")
     s1, s2 = st.columns(2)
+
+    visitor_count = st.session_state.db.get_visitor_count()
+    total_users = st.session_state.db.get_user_count()
+    today_new_users = st.session_state.db.get_today_user_registrations()
+
     with s1:
-        st.metric(label=get_text("stats_visitors"), value=st.session_state.db.get_visitor_count(), delta="12")
+        st.metric(label=get_text("stats_visitors"), value=visitor_count)
     with s2:
-        st.metric(label=get_text("stats_users"), value=st.session_state.db.get_user_count(), delta="New")
+        st.metric(
+            label=get_text("stats_users"),
+            value=total_users,
+            delta=f"+{today_new_users}" if today_new_users else "0"
+        )
 
 def render_events(limit=None):
     # Use the robust data access method
@@ -413,6 +564,7 @@ def render_events(limit=None):
         with cols[idx % 3]:
             # Determine title based on language
             title = event.get('title_en', 'Untitled') if st.session_state.lang == 'en' else event.get('title_kr', '제목 없음')
+            event_id = event.get('id', str(idx))
             
             # Card UI
             st.image(event.get('image', 'https://via.placeholder.com/300'), use_container_width=True)
@@ -420,10 +572,48 @@ def render_events(limit=None):
             st.caption(f"📅 {event.get('date', 'TBD')} | 📍 {event.get('location', 'TBD')}")
             st.markdown(f"**{event.get('participants', 0)}** {get_text('participants')}")
             
-            # Use event['id'] which is ensured by _to_dict
-            if st.button(get_text("event_join"), key=f"join_{event.get('id', idx)}"):
-                st.success(get_text("event_joined"))
-                # In a real app, update DB here
+            # Duration and Cost
+            duration = event.get('duration_hours', 3)
+            cost = duration * 1.5
+            st.markdown(f"⏱️ **{get_text('event_duration')}:** {duration} {get_text('event_hours')} | 💵 **{get_text('event_cost')}:** ${cost:.1f}")
+            
+            # Event Details Toggle (Schedule)
+            schedule = event.get('schedule', [])
+            if schedule:
+                with st.expander(f"📋 {get_text('event_details')}"):
+                    st.markdown(f"**{get_text('event_schedule')}**")
+                    for item in schedule:
+                        activity = item.get('activity_en', '') if st.session_state.lang == 'en' else item.get('activity_kr', '')
+                        st.markdown(f"- **{item.get('time', '')}** - {activity}")
+            
+            # Join Button with Name Verification
+            with st.expander(f"🎫 {get_text('event_join')}"):
+                join_name = st.text_input(
+                    get_text("event_enter_name"), 
+                    key=f"join_name_{event_id}"
+                )
+                if st.button(get_text("event_join"), key=f"join_btn_{event_id}"):
+                    if join_name:
+                        # Check if user is registered
+                        user = st.session_state.db.get_user_by_name(join_name)
+                        if user:
+                            # Try to join the event
+                            result = st.session_state.db.join_event(user['id'], event_id, title)
+                            if result == "already_joined":
+                                st.warning(get_text("event_already_joined"))
+                            elif result:
+                                st.success(get_text("event_join_success"))
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("Failed to join event.")
+                        else:
+                            st.error(get_text("event_not_registered"))
+                            if st.button("Register Now", key=f"go_register_{event_id}"):
+                                navigate_to("register")
+                                st.rerun()
+                    else:
+                        st.warning(get_text("event_enter_name"))
             
             st.markdown("---")
 
@@ -455,17 +645,68 @@ def render_reviews():
 def render_mypage():
     st.header(get_text("mypage_header"))
     
-    st.info(get_text("mypage_welcome"))
+    # User lookup by name
+    if 'mypage_user' not in st.session_state:
+        st.session_state.mypage_user = None
     
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.image("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", width=150)
-    with col2:
-        st.subheader("Student Profile")
-        st.write("**Name:** Choi Sunwoo")
-        st.write("**University:** POSTECH")
-        st.write("**Major:** Computer Science")
-        st.write("**Interests:** Coding, Coffee, Travel")
+    # Login form to find user
+    with st.container(border=True):
+        st.markdown(f"**{get_text('mypage_login_prompt')}**")
+        lookup_name = st.text_input("Name", key="mypage_lookup_name", label_visibility="collapsed")
+        if st.button(get_text("mypage_view"), key="mypage_lookup_btn"):
+            if lookup_name:
+                user = st.session_state.db.get_user_by_name(lookup_name)
+                if user:
+                    st.session_state.mypage_user = user
+                    st.rerun()
+                else:
+                    st.error(get_text("event_not_registered"))
+    
+    # Display user profile if found
+    user = st.session_state.mypage_user
+    if user:
+        st.info(get_text("mypage_welcome"))
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            # Generate avatar based on user name
+            avatar_seed = user.get('name', 'User').replace(' ', '')
+            st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={avatar_seed}", width=150)
+        with col2:
+            st.subheader(user.get('name', 'Unknown'))
+            st.write(f"**Student ID:** {user.get('id', 'N/A')}")
+            st.write(f"**Email:** {user.get('email', 'N/A')}")
+            st.write(f"**Registered:** {user.get('created_at', 'N/A')}")
+        
+        st.markdown("---")
+        
+        # Display joined events
+        st.subheader(f"🎫 {get_text('mypage_joined_events')}")
+        
+        joined_events = user.get('joined_events', [])
+        if joined_events:
+            for event_info in joined_events:
+                with st.container(border=True):
+                    col_a, col_b = st.columns([3, 1])
+                    with col_a:
+                        st.markdown(f"**{event_info.get('event_title', 'Unknown Event')}**")
+                        st.caption(f"📅 Joined: {event_info.get('joined_at', 'N/A')}")
+                    with col_b:
+                        # Fetch event details if needed
+                        event_id = event_info.get('event_id')
+                        if event_id:
+                            event_data = st.session_state.db.get_event_by_id(event_id)
+                            if event_data:
+                                duration = event_data.get('duration_hours', 3)
+                                cost = duration * 1.5
+                                st.markdown(f"💵 ${cost:.1f}")
+        else:
+            st.info(get_text("mypage_no_events"))
+        
+        # Logout button
+        if st.button("🚪 Logout", key="mypage_logout"):
+            st.session_state.mypage_user = None
+            st.rerun()
 
 def render_register():
     st.header(get_text("reg_title"))
@@ -510,13 +751,28 @@ def render_admin():
         date = c1.text_input("Date (e.g., 2024-05-20 19:00)")
         location = c2.text_input("Location")
         image = st.text_input("Image URL (Unsplash etc.)")
-        participants = st.number_input("Current Participants", value=0)
+        
+        c3, c4 = st.columns(2)
+        participants = c3.number_input("Current Participants", value=0)
+        duration_hours = c4.number_input("Duration (hours)", min_value=1, max_value=12, value=4)
+        
+        st.markdown("**Schedule (JSON format)**")
+        st.caption('Example: [{"time": "19:00", "activity_en": "Meetup", "activity_kr": "만남"}]')
+        schedule_json = st.text_area("Schedule", value="[]", height=100)
         
         if st.form_submit_button("Add Event"):
+            try:
+                schedule = json.loads(schedule_json)
+            except json.JSONDecodeError:
+                schedule = []
+                st.warning("Invalid JSON format for schedule. Using empty schedule.")
+            
             new_event = {
                 "title_en": title_en, "title_kr": title_kr,
                 "date": date, "location": location,
-                "image": image, "participants": participants
+                "image": image, "participants": participants,
+                "duration_hours": duration_hours,
+                "schedule": schedule
             }
             st.session_state.db.add_event(new_event)
             st.success("Event added!")
