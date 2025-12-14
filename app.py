@@ -22,7 +22,7 @@ TRANSLATIONS = {
         "nav_mypage": "My Page",
         "hero_title": "NodeX",
         "hero_subtitle": "Come meet, play, and connect with 100+ global students — Everything’s ready for you!",
-        "hero_cta": "Join Now",
+        "hero_cta": "Register Now",
         "event_header": "Upcoming Events",
         "event_join": "Join",
         "event_joined": "Joined!",
