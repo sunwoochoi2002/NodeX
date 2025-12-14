@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import random
 import json
+import base64
 from datetime import datetime
 
 # ==========================================
@@ -387,6 +388,11 @@ class RealFirestore:
         if doc.exists:
             return self._to_dict(doc)
         return None
+
+    def update_user(self, user_id, updates):
+        """Update specific fields of a user."""
+        if not self.db: return
+        self.db.collection("users").document(user_id).update(updates)
 
     def join_event(self, user_id, event_id, event_title, user_name):
         """Add an event to a user's joined_events list and update event participants."""
@@ -869,9 +875,33 @@ def render_mypage():
         
         col1, col2 = st.columns([1, 3])
         with col1:
-            # Generate avatar based on user name
-            avatar_seed = user.get('name', 'User').replace(' ', '')
-            st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={avatar_seed}", width=150)
+            # Check if user has uploaded a profile image
+            profile_image = user.get('profile_image')
+            if profile_image:
+                # Display uploaded image (base64 encoded)
+                st.image(profile_image, width=150)
+            else:
+                # Generate avatar based on user name (default)
+                avatar_seed = user.get('name', 'User').replace(' ', '')
+                st.image(f"https://api.dicebear.com/7.x/avataaars/svg?seed={avatar_seed}", width=150)
+            
+            # Profile image upload
+            uploaded_file = st.file_uploader(
+                "📷 Upload Photo" if st.session_state.lang == 'en' else "📷 사진 업로드",
+                type=['jpg', 'jpeg', 'png'],
+                key="profile_upload"
+            )
+            if uploaded_file is not None:
+                # Convert to base64
+                bytes_data = uploaded_file.getvalue()
+                base64_image = f"data:image/{uploaded_file.type.split('/')[-1]};base64,{base64.b64encode(bytes_data).decode()}"
+                
+                # Save to database
+                st.session_state.db.update_user(user.get('id'), {"profile_image": base64_image})
+                st.success("Profile photo updated!" if st.session_state.lang == 'en' else "프로필 사진이 업데이트되었습니다!")
+                time.sleep(1)
+                st.rerun()
+        
         with col2:
             st.subheader(user.get('name', 'Unknown'))
             st.write(f"**Student ID:** {user.get('id', 'N/A')}")
