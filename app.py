@@ -665,33 +665,38 @@ def render_events(limit=None):
                         key=f"join_name_{event_id}"
                     )
                     
-                    col_join, col_register = st.columns(2)
+                    # Track if user needs to register (per event)
+                    needs_register_key = f"needs_register_{event_id}"
                     
-                    with col_join:
-                        if st.button(get_text("event_join"), key=f"join_btn_{event_id}", use_container_width=True):
-                            if join_name:
-                                # Check if user is registered
-                                user = st.session_state.db.get_user_by_name(join_name)
-                                if user:
-                                    # Try to join the event
-                                    result = st.session_state.db.join_event(user['id'], event_id, title, join_name)
-                                    if result == "already_joined":
-                                        st.warning(get_text("event_already_joined"))
-                                    elif result == "event_full":
-                                        st.error("This event is full!")
-                                    elif result:
-                                        st.success(get_text("event_join_success"))
-                                        time.sleep(1)
-                                        st.rerun()
-                                    else:
-                                        st.error("Failed to join event.")
+                    if st.button(get_text("event_join"), key=f"join_btn_{event_id}", use_container_width=True):
+                        if join_name:
+                            # Check if user is registered
+                            user = st.session_state.db.get_user_by_name(join_name)
+                            if user:
+                                # Clear the needs_register flag
+                                st.session_state[needs_register_key] = False
+                                # Try to join the event
+                                result = st.session_state.db.join_event(user['id'], event_id, title, join_name)
+                                if result == "already_joined":
+                                    st.warning(get_text("event_already_joined"))
+                                elif result == "event_full":
+                                    st.error("This event is full!")
+                                elif result:
+                                    st.success(get_text("event_join_success"))
+                                    time.sleep(1)
+                                    st.rerun()
                                 else:
-                                    st.error(get_text("event_not_registered"))
+                                    st.error("Failed to join event.")
                             else:
-                                st.warning(get_text("event_enter_name"))
+                                # User not registered - show Register button
+                                st.session_state[needs_register_key] = True
+                                st.error(get_text("event_not_registered"))
+                        else:
+                            st.warning(get_text("event_enter_name"))
                     
-                    with col_register:
-                        if st.button("Register Now", key=f"go_register_{event_id}", use_container_width=True):
+                    # Show "Register first" button only if user is not registered
+                    if st.session_state.get(needs_register_key, False):
+                        if st.button("🔗 Register first", key=f"go_register_{event_id}", use_container_width=True):
                             navigate_to("register")
                             st.rerun()
             
