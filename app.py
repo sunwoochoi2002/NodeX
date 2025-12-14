@@ -276,8 +276,19 @@ class RealFirestore:
         """Add a new review to the database."""
         if not self.db: return None
         review_data['created_at'] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        review_data['is_visible'] = True  # Reviews are visible by default
         doc_ref = self.db.collection("reviews").add(review_data)
         return doc_ref
+
+    def update_review(self, review_id, updates):
+        """Update specific fields of a review."""
+        if not self.db: return
+        self.db.collection("reviews").document(review_id).update(updates)
+
+    def delete_review(self, review_id):
+        """Delete a review from the database."""
+        if not self.db: return
+        self.db.collection("reviews").document(review_id).delete()
 
     def get_past_events(self):
         """Fetches past events (is_upcoming=False) as a list of dictionaries."""
@@ -799,7 +810,10 @@ def render_reviews():
 
     # Display Reviews
     st.markdown("---")
-    reviews = st.session_state.db.get_reviews()
+    all_reviews = st.session_state.db.get_reviews()
+    
+    # Filter only visible reviews for regular users
+    reviews = [r for r in all_reviews if r.get('is_visible', True)]
     
     if not reviews:
         st.info("No reviews yet. Be the first to write one!" if st.session_state.lang == 'en' else "아직 리뷰가 없습니다. 첫 리뷰를 작성해보세요!")
@@ -1005,6 +1019,48 @@ def render_admin():
                     st.error("Event deleted.")
                     time.sleep(1)
                     st.rerun()
+
+    st.divider()
+    
+    st.subheader("4. Manage Reviews")
+    reviews = st.session_state.db.get_reviews()
+    
+    if not reviews:
+        st.info("No reviews yet.")
+    else:
+        for r_data in reviews:
+            is_visible = r_data.get('is_visible', True)
+            status_icon = "👁️" if is_visible else "🚫"
+            review_id = r_data.get('id')
+            
+            with st.expander(f"{status_icon} {r_data.get('user', 'Anonymous')} - {r_data.get('event_title', 'Unknown')}"):
+                st.write(f"**Rating:** {'⭐' * r_data.get('rating', 5)}")
+                st.write(f"**Comment:** {r_data.get('comment', '')}")
+                st.write(f"**Created:** {r_data.get('created_at', 'N/A')}")
+                
+                col_r1, col_r2 = st.columns(2)
+                
+                with col_r1:
+                    # Toggle visibility
+                    if is_visible:
+                        if st.button("🚫 Hide Review", key=f"hide_review_{review_id}"):
+                            st.session_state.db.update_review(review_id, {"is_visible": False})
+                            st.warning("Review hidden from users.")
+                            time.sleep(1)
+                            st.rerun()
+                    else:
+                        if st.button("👁️ Show Review", key=f"show_review_{review_id}"):
+                            st.session_state.db.update_review(review_id, {"is_visible": True})
+                            st.success("Review is now visible.")
+                            time.sleep(1)
+                            st.rerun()
+                
+                with col_r2:
+                    if st.button("🗑️ Delete Review", key=f"del_review_{review_id}"):
+                        st.session_state.db.delete_review(review_id)
+                        st.error("Review deleted.")
+                        time.sleep(1)
+                        st.rerun()
 
 # ==========================================
 # 5. MAIN APP EXECUTION
