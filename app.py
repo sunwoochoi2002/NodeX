@@ -337,6 +337,14 @@ class RealFirestore:
             return self._to_dict(user)
         return None
 
+    def get_user_by_id(self, user_id):
+        """Find a user by their ID. Returns user dict or None."""
+        if not self.db: return None
+        doc = self.db.collection("users").document(user_id).get()
+        if doc.exists:
+            return self._to_dict(doc)
+        return None
+
     def join_event(self, user_id, event_id, event_title, user_name):
         """Add an event to a user's joined_events list and update event participants."""
         if not self.db: return False
@@ -586,7 +594,29 @@ def render_home():
 
 def render_events(limit=None):
     # Use the robust data access method
-    events = st.session_state.db.get_events(limit=limit)
+    all_events = st.session_state.db.get_events(limit=None)
+    
+    # Filter out past events (only show upcoming events)
+    now = datetime.now()
+    events = []
+    for event in all_events:
+        event_date_str = event.get('date', '')
+        try:
+            # Parse event date (format: "2025-01-15 19:00")
+            event_date = datetime.strptime(event_date_str, "%Y-%m-%d %H:%M")
+            if event_date >= now:
+                events.append(event)
+        except (ValueError, TypeError):
+            # If date parsing fails, include the event anyway
+            events.append(event)
+    
+    # Apply limit after filtering
+    if limit:
+        events = events[:limit]
+    
+    if not events:
+        st.info("No upcoming events at the moment. Check back later!")
+        return
         
     # Grid Layout for Events
     cols = st.columns(3)
@@ -696,9 +726,9 @@ def render_reviews():
 def render_mypage():
     st.header(get_text("mypage_header"))
     
-    # User lookup by name
-    if 'mypage_user' not in st.session_state:
-        st.session_state.mypage_user = None
+    # User lookup by name - store only the user_id, not the full data
+    if 'mypage_user_id' not in st.session_state:
+        st.session_state.mypage_user_id = None
     
     # Login form to find user
     with st.container(border=True):
@@ -708,14 +738,21 @@ def render_mypage():
             if lookup_name:
                 user = st.session_state.db.get_user_by_name(lookup_name)
                 if user:
-                    st.session_state.mypage_user = user
+                    st.session_state.mypage_user_id = user.get('id')
                     st.rerun()
                 else:
                     st.error(get_text("event_not_registered"))
     
-    # Display user profile if found
-    user = st.session_state.mypage_user
-    if user:
+    # Display user profile if logged in - ALWAYS fetch fresh data from DB
+    if st.session_state.mypage_user_id:
+        # Fetch fresh user data every time
+        user = st.session_state.db.get_user_by_id(st.session_state.mypage_user_id)
+        
+        if not user:
+            st.error("User not found. Please login again.")
+            st.session_state.mypage_user_id = None
+            return
+        
         st.info(get_text("mypage_welcome"))
         
         col1, col2 = st.columns([1, 3])
@@ -731,7 +768,7 @@ def render_mypage():
         
         st.markdown("---")
         
-        # Display joined events
+        # Display joined events - this now shows fresh data
         st.subheader(f"🎫 {get_text('mypage_joined_events')}")
         
         joined_events = user.get('joined_events', [])
@@ -756,7 +793,7 @@ def render_mypage():
         
         # Logout button
         if st.button("🚪 Logout", key="mypage_logout"):
-            st.session_state.mypage_user = None
+            st.session_state.mypage_user_id = None
             st.rerun()
 
 def render_register():
