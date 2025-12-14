@@ -114,13 +114,14 @@ INITIAL_EVENTS = [
     {
         "title_en": "Board Game Cafe Night",
         "title_kr": "보드게임 카페 모임",
-        "date": "2025-01-15 19:00",
+        "date": "2025-12-20 19:00",
         "location": "Whale Cafe, Hyoja",
         "image": "https://images.unsplash.com/photo-1632501641765-e568d9088bed?auto=format&fit=crop&q=80&w=800",
         "current_participants": 3,
         "max_participants": 12,
         "participant_names": [],
         "duration_hours": 4,
+        "is_upcoming": True,
         "schedule": [
             {"time": "19:00", "activity_en": "Meetup & Introduction", "activity_kr": "만남 및 소개"},
             {"time": "19:30", "activity_en": "Light snacks & drinks", "activity_kr": "간식 및 음료"},
@@ -133,13 +134,14 @@ INITIAL_EVENTS = [
     {
         "title_en": "Pohang Hyoja Market Tour",
         "title_kr": "포항 효자 시장 투어",
-        "date": "2025-01-18 11:00",
+        "date": "2025-12-28 11:00",
         "location": "Hyoja Market Entrance",
         "image": "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&q=80&w=800",
         "current_participants": 2,
         "max_participants": 8,
         "participant_names": [],
         "duration_hours": 3,
+        "is_upcoming": True,
         "schedule": [
             {"time": "11:00", "activity_en": "Meet at market entrance", "activity_kr": "시장 입구 집합"},
             {"time": "11:15", "activity_en": "Traditional market exploration", "activity_kr": "전통시장 탐방"},
@@ -151,13 +153,14 @@ INITIAL_EVENTS = [
     {
         "title_en": "Local Foodie Tour",
         "title_kr": "맛집 투어",
-        "date": "2025-01-25 18:00",
+        "date": "2026-01-10 18:00",
         "location": "Yeongildae Beach",
         "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
         "current_participants": 5,
         "max_participants": 20,
         "participant_names": [],
         "duration_hours": 5,
+        "is_upcoming": True,
         "schedule": [
             {"time": "18:00", "activity_en": "Gather at meeting point", "activity_kr": "집합 장소 모임"},
             {"time": "18:30", "activity_en": "Restaurant 1: Fresh seafood", "activity_kr": "맛집 1: 신선한 해산물"},
@@ -170,13 +173,14 @@ INITIAL_EVENTS = [
     {
         "title_en": "Yeongildae Beach Tour",
         "title_kr": "영일대 해변 투어",
-        "date": "2025-02-01 14:00",
+        "date": "2026-01-18 14:00",
         "location": "Space Walk",
         "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800",
         "current_participants": 8,
         "max_participants": 25,
         "participant_names": [],
         "duration_hours": 6,
+        "is_upcoming": True,
         "schedule": [
             {"time": "14:00", "activity_en": "Meet at Space Walk", "activity_kr": "스페이스워크 집합"},
             {"time": "14:30", "activity_en": "Space Walk photo time", "activity_kr": "스페이스워크 사진 시간"},
@@ -190,13 +194,14 @@ INITIAL_EVENTS = [
     {
         "title_en": "Movie Night",
         "title_kr": "영화 나들이",
-        "date": "2025-02-08 20:00",
+        "date": "2026-01-25 20:00",
         "location": "CGV Pohang",
         "image": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800",
         "current_participants": 4,
         "max_participants": 15,
         "participant_names": [],
         "duration_hours": 4,
+        "is_upcoming": True,
         "schedule": [
             {"time": "20:00", "activity_en": "Meet at CGV lobby", "activity_kr": "CGV 로비 집합"},
             {"time": "20:15", "activity_en": "Get popcorn & snacks", "activity_kr": "팝콘 및 간식 구매"},
@@ -320,6 +325,11 @@ class RealFirestore:
     def delete_event(self, event_id):
         if not self.db: return
         self.db.collection("events").document(event_id).delete()
+
+    def update_event(self, event_id, updates):
+        """Update specific fields of an event."""
+        if not self.db: return
+        self.db.collection("events").document(event_id).update(updates)
 
     def seed_events(self):
         if not self.db: return
@@ -596,19 +606,8 @@ def render_events(limit=None):
     # Use the robust data access method
     all_events = st.session_state.db.get_events(limit=None)
     
-    # Filter out past events (only show upcoming events)
-    now = datetime.now()
-    events = []
-    for event in all_events:
-        event_date_str = event.get('date', '')
-        try:
-            # Parse event date (format: "2025-01-15 19:00")
-            event_date = datetime.strptime(event_date_str, "%Y-%m-%d %H:%M")
-            if event_date >= now:
-                events.append(event)
-        except (ValueError, TypeError):
-            # If date parsing fails, include the event anyway
-            events.append(event)
+    # Filter events: only show events where is_upcoming is True
+    events = [event for event in all_events if event.get('is_upcoming', False) == True]
     
     # Apply limit after filtering
     if limit:
@@ -844,7 +843,9 @@ def render_admin():
         current_participants = c3.number_input("Current Participants", value=0)
         max_participants = c4.number_input("Max Participants", min_value=1, value=20)
         
-        duration_hours = st.number_input("Duration (hours)", min_value=1, max_value=12, value=4)
+        c5, c6 = st.columns(2)
+        duration_hours = c5.number_input("Duration (hours)", min_value=1, max_value=12, value=4)
+        is_upcoming = c6.checkbox("Is Upcoming (visible to users)", value=True)
         
         st.markdown("**Schedule (JSON format)**")
         st.caption('Example: [{"time": "19:00", "activity_en": "Meetup", "activity_kr": "만남"}]')
@@ -865,6 +866,7 @@ def render_admin():
                 "max_participants": max_participants,
                 "participant_names": [],
                 "duration_hours": duration_hours,
+                "is_upcoming": is_upcoming,
                 "schedule": schedule
             }
             st.session_state.db.add_event(new_event)
@@ -877,13 +879,33 @@ def render_admin():
     st.subheader("3. Manage Events")
     events = st.session_state.db.get_events()
     for e_data in events:
-        with st.expander(f"{e_data.get('title_en', 'Untitled')} ({e_data.get('date', 'No Date')})"):
+        is_upcoming = e_data.get('is_upcoming', False)
+        status_icon = "✅" if is_upcoming else "❌"
+        with st.expander(f"{status_icon} {e_data.get('title_en', 'Untitled')} ({e_data.get('date', 'No Date')})"):
             st.write(e_data)
-            if st.button("Delete Event", key=f"del_{e_data.get('id')}"):
-                st.session_state.db.delete_event(e_data.get('id'))
-                st.error("Event deleted.")
-                time.sleep(1)
-                st.rerun()
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                # Toggle is_upcoming status
+                if is_upcoming:
+                    if st.button("🚫 Mark as Past", key=f"hide_{e_data.get('id')}"):
+                        st.session_state.db.update_event(e_data.get('id'), {"is_upcoming": False})
+                        st.warning("Event marked as past (hidden from users).")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    if st.button("✅ Mark as Upcoming", key=f"show_{e_data.get('id')}"):
+                        st.session_state.db.update_event(e_data.get('id'), {"is_upcoming": True})
+                        st.success("Event marked as upcoming (visible to users).")
+                        time.sleep(1)
+                        st.rerun()
+            
+            with col_b:
+                if st.button("🗑️ Delete Event", key=f"del_{e_data.get('id')}"):
+                    st.session_state.db.delete_event(e_data.get('id'))
+                    st.error("Event deleted.")
+                    time.sleep(1)
+                    st.rerun()
 
 # ==========================================
 # 5. MAIN APP EXECUTION
